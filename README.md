@@ -19,7 +19,7 @@ All we need is:
    + Destroy: 44s
  * Terraform:
    + Deploy: 54s
-   + Destroy: 
+   + Destroy: 1m 3s
 
 ## Reasons I prefer Terraform
 
