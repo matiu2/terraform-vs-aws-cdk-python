@@ -8,7 +8,7 @@ All we need is:
    + An ssh key to sign into it
    + A role that allows it to run cloudwatch operations
    + A bootstrap userdata file (you have to sign up for the couse to get it)
-   + A security group allowing SSH from my house
+   + A security group allowing SSH from my house and outgoing http and https to anywhere
 
 # Summary
 
