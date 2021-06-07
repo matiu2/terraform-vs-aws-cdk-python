@@ -28,11 +28,68 @@ All we need is:
      library](https://pypi.org/project/cdk-ec2-key-pair/) to generate a
      key-pair inside of AWS, then download the private key to use it, or have a
      pre-existing key. I went with the pre-existing key route.
- * I like the terraform code better; it's an explicit, purpose built language with strong constraints.
- * You could say "oh, but python makes things more flexible". I don't see that
-   a as a plus; it gives you more chance to complicate things
- * In CDK, when creating the SecurityGroup using the high level object,
-   AllowAllOutbound defaults to true if you leave it out. Great for getting
-   things done, not great for security. Terraform is more explicit; you have to
-   say what you want.
- * That goes without saying, that terraform is also multicloud
+ * The terraform language is more purpose created, explicit and easier to follow. This is important when approving PRs for important infrastructure changes
+
+# Code comparison
+
+## Security group
+
+### Terraform
+
+```hcl
+resource "aws_security_group" "cloud_watch" {
+  name = "cloud_watch"
+}
+
+resource "aws_security_group_rule" "ingress" {
+  for_each = {
+    ssh   = 22
+    http  = 80
+    https = 443
+  }
+  security_group_id = aws_security_group.cloud_watch.id
+  type              = "ingress"
+  protocol          = "tcp"
+  from_port         = each.value
+  to_port           = each.value
+  cidr_blocks       = [local.my_cidr]
+}
+
+resource "aws_security_group_rule" "egress" {
+  for_each = {
+    http  = 80
+    https = 443
+  }
+  security_group_id = aws_security_group.cloud_watch.id
+  type              = "egress"
+  protocol          = "tcp"
+  from_port         = each.value
+  to_port           = each.value
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+```
+
+### Python
+
+```python
+from aws_cdk import aws_ec2 as ec2, core as cdk
+
+def make_security_group(scope, vpc):
+    sg = ec2.SecurityGroup(scope, "cloud-watch-cdk", vpc=vpc, allow_all_outbound=False)
+    # http
+    sg.add_egress_rule(ec2.Peer.any_ipv4(), ec2.Port.tcp(80))
+    # https
+    sg.add_egress_rule(ec2.Peer.any_ipv4(), ec2.Port.tcp(443))
+
+    # Parameter for my home IP address
+    ssh_safe_cidr = cdk.CfnParameter(
+        scope,
+        "ssh-safe-cidr",
+        description="The CIDR that is allowed to ssh into the instance",
+    )
+
+    ## SSH in
+    sg.add_ingress_rule(ec2.Peer.ipv4(ssh_safe_cidr.value_as_string), ec2.Port.tcp(22))
+
+    return sg
+```
