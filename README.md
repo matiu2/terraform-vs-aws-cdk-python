@@ -36,6 +36,8 @@ All we need is:
 
 ### Terraform
 
+Terraform is more code, but I like it better because it's more readable and standardized
+
 ```hcl
 resource "aws_security_group" "cloud_watch" {
   name = "cloud_watch"
@@ -92,4 +94,69 @@ def make_security_group(scope, vpc):
     sg.add_ingress_rule(ec2.Peer.ipv4(ssh_safe_cidr.value_as_string), ec2.Port.tcp(22))
 
     return sg
+```
+
+## IAM Role
+
+Here again, the terraform is longer, because it doesn't have the higher level
+ojbects (you'd have to write a module for it). Python implicitly creates the
+instance_profile to attache the role to the ec2 instance.
+
+### Terraform
+
+```hcl
+data "aws_iam_policy" "cloudwatch_full_access" {
+  name = "CloudWatchFullAccess"
+}
+
+resource "aws_iam_role" "cloudwatch_for_ec2" {
+  name = "cloudwatch_for_ec2"
+  assume_role_policy = jsonencode({
+    "Version" : "2012-10-17",
+    "Statement" : [
+      {
+        "Effect" : "Allow",
+        "Principal" : {
+          "Service" : "ec2.amazonaws.com"
+        },
+        "Action" : "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "test_attach" {
+  role       = aws_iam_role.cloudwatch_for_ec2.name
+  policy_arn = data.aws_iam_policy.cloudwatch_full_access.arn
+}
+
+resource "aws_iam_instance_profile" "cloud_watch" {
+  name = "cloud_watch"
+  role = aws_iam_role.cloudwatch_for_ec2.name
+}
+```
+
+### Python
+
+```python
+from aws_cdk import aws_iam as iam
+
+
+def access_cloudwatch(scope):
+    """
+    Returns an instance profile that allows an ec2 instance to access cloudwatch
+    """
+    policy = iam.ManagedPolicy.from_managed_policy_arn(
+        scope, "allow-cloudwatch", "arn:aws:iam::aws:policy/CloudWatchFullAccess"
+    )
+
+    role = iam.Role(
+        scope,
+        "allow-cloudwatch-access",
+        description="Allows ec2 instances to access cloudwatch",
+        assumed_by=iam.ServicePrincipal(
+            service="ec2.amazonaws.com", region=scope.region
+        ),
+    )
+    return role
 ```
