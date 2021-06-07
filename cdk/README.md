@@ -47,6 +47,12 @@ To add additional dependencies, for example other CDK libraries, just add
 them to your `setup.py` file and rerun the `pip install -r requirements.txt`
 command.
 
+To actually do the deploy, I use this command:
+
+```
+$ cdk deploy --parameters sshkeypairname=PUT_YOUR_KEY_NAME_HERE --parameters "userdata=$(cat bootstrap.sh)" --parameters "sshsafecidr=$(curl icanhazip.com)/32"
+```
+
 ## Useful commands
 
  * `cdk ls`          list all stacks in the app
@@ -56,3 +62,4 @@ command.
  * `cdk docs`        open CDK documentation
 
 Enjoy!
+
